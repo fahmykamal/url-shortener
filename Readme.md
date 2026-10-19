@@ -29,7 +29,29 @@ docker compose up -d --build
 
 Allow port `5076` (or set `API_PORT` before starting) in the VM firewall, then open `http://<vm-ip>:5076`.
 
-Update a running deployment:
+## Continuous deployment
+
+CI builds on every push (`.github/workflows/ci.yml`). The VM runs `deploy.sh` from a systemd timer every minute: it fetches `origin/main`, rebuilds, and health-checks `localhost:5076`.
+
+Install the timer once on the VM:
+
+```bash
+sudo usermod -aG docker "$USER"   # then reconnect
+sudo cp deploy/url-shortener-deploy.service deploy/url-shortener-deploy.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now url-shortener-deploy.timer
+```
+
+Edit the unit files first if your VM user or repo path differs from `fahmykamal96` / `/home/fahmykamal96/url-shortener`.
+
+Check deployments:
+
+```bash
+systemctl list-timers url-shortener-deploy.timer
+journalctl -u url-shortener-deploy.service -n 50 --no-pager
+```
+
+Manual update is still possible:
 
 ```bash
 git pull

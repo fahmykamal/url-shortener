@@ -1,6 +1,7 @@
 bin/
 obj/
 .env
+.deployed-rev
 .vs/
 .vscode/
 .idea/
