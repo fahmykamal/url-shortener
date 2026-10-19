@@ -11,6 +11,7 @@ public class UrlShortenerService : IUrlShortenerService
     private const string UrlKeyPrefix = "url:";
     private const string StatsKeyPrefix = "stats:";
     private const string ReverseKeyPrefix = "reverse:";
+    private const int MinCodeLength = 7;
 
     private readonly IDatabase _db;
 
@@ -22,48 +23,29 @@ public class UrlShortenerService : IUrlShortenerService
     public async Task<ShortenedUrl> CreateShortUrlAsync(string longUrl, string? customCode = null, int? expiresInHours = null)
     {
         var hash = ComputeHash(longUrl);
+        var now = DateTime.Now;
+        var expiresAt = expiresInHours.HasValue ? now.AddHours(expiresInHours.Value) : (DateTime?)null;
 
-        if (customCode == null)
+        if (string.IsNullOrWhiteSpace(customCode))
         {
-            var reverseCode = await _db.StringGetAsync(ReverseKeyPrefix + hash);
-            if (reverseCode.HasValue)
-            {
-                var data = await _db.StringGetAsync(UrlKeyPrefix + reverseCode.ToString());
-                if (data.HasValue)
-                {
-                    var existing = JsonSerializer.Deserialize<ShortenedUrl>(data!);
-                    if (existing != null)
-                    {
-                        existing.Message = "URL already exists";
-                        return existing;
-                    }
-                }
-            }
+            var existing = await GetExistingByLongUrlAsync(hash);
+            if (existing != null)
+                return existing;
         }
 
-        var code = customCode ?? GenerateCode(longUrl);
+        var shortened = string.IsNullOrWhiteSpace(customCode)
+            ? await ReserveGeneratedCodeAsync(longUrl, hash, now, expiresAt)
+            : await ReserveCustomCodeAsync(customCode, longUrl, now, expiresAt);
 
-        var codeExists = await _db.StringGetAsync(UrlKeyPrefix + code);
-        if (codeExists.HasValue)
-            throw new InvalidOperationException("Code already exists.");
+        await _db.StringSetAsync(ReverseKeyPrefix + hash, shortened.Code);
+        await _db.StringSetAsync(StatsKeyPrefix + shortened.Code, 0);
 
-        var shortened = new ShortenedUrl
+        if (expiresAt.HasValue)
         {
-            Code = code,
-            LongUrl = longUrl,
-            CreatedAt = DateTime.Now,
-            ExpiresAt = expiresInHours.HasValue ? DateTime.Now.AddHours(expiresInHours.Value) : null,
-        };
-
-        await _db.StringSetAsync(ReverseKeyPrefix + hash, code);
-        await _db.StringSetAsync(UrlKeyPrefix + code, JsonSerializer.Serialize(shortened));
-        await _db.StringSetAsync(StatsKeyPrefix + code, 0);
-
-        if (shortened.ExpiresAt.HasValue)
-        {
-            var expiry = shortened.ExpiresAt.Value - DateTime.Now;
-            await _db.KeyExpireAsync(UrlKeyPrefix + code, expiry);
-            await _db.KeyExpireAsync(StatsKeyPrefix + code, expiry);
+            var expiry = expiresAt.Value - DateTime.Now;
+            await _db.KeyExpireAsync(UrlKeyPrefix + shortened.Code, expiry);
+            await _db.KeyExpireAsync(StatsKeyPrefix + shortened.Code, expiry);
+            await _db.KeyExpireAsync(ReverseKeyPrefix + hash, expiry);
         }
 
         return shortened;
@@ -96,10 +78,64 @@ public class UrlShortenerService : IUrlShortenerService
         return shortened;
     }
 
-    private static string GenerateCode(string longUrl)
+    private async Task<ShortenedUrl?> GetExistingByLongUrlAsync(string hash)
     {
-        var hash = ComputeHash(longUrl);
-        return hash[..7];
+        var reverseCode = await _db.StringGetAsync(ReverseKeyPrefix + hash);
+        if (!reverseCode.HasValue) return null;
+
+        var data = await _db.StringGetAsync(UrlKeyPrefix + reverseCode.ToString());
+        if (!data.HasValue) return null;
+
+        var existing = JsonSerializer.Deserialize<ShortenedUrl>(data!);
+        if (existing != null)
+            existing.Message = "URL already exists";
+
+        return existing;
+    }
+
+    private async Task<ShortenedUrl> ReserveGeneratedCodeAsync(string longUrl, string hash, DateTime now, DateTime? expiresAt)
+    {
+        for (var length = MinCodeLength; length <= hash.Length; length++)
+        {
+            var shortened = new ShortenedUrl
+            {
+                Code = hash[..length],
+                LongUrl = longUrl,
+                CreatedAt = now,
+                ExpiresAt = expiresAt,
+            };
+
+            var stored = await _db.StringSetAsync(
+                UrlKeyPrefix + shortened.Code,
+                JsonSerializer.Serialize(shortened),
+                when: When.NotExists);
+
+            if (stored)
+                return shortened;
+        }
+
+        throw new InvalidOperationException("Unable to generate a unique code.");
+    }
+
+    private async Task<ShortenedUrl> ReserveCustomCodeAsync(string code, string longUrl, DateTime now, DateTime? expiresAt)
+    {
+        var shortened = new ShortenedUrl
+        {
+            Code = code,
+            LongUrl = longUrl,
+            CreatedAt = now,
+            ExpiresAt = expiresAt,
+        };
+
+        var stored = await _db.StringSetAsync(
+            UrlKeyPrefix + code,
+            JsonSerializer.Serialize(shortened),
+            when: When.NotExists);
+
+        if (!stored)
+            throw new InvalidOperationException("Code already exists.");
+
+        return shortened;
     }
 
     private static string ComputeHash(string input)

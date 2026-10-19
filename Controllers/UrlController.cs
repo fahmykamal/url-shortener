@@ -22,6 +22,9 @@ public class UrlController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Url))
             return BadRequest("Url is required.");
 
+        if (request.ExpiresInHours is <= 0)
+            return BadRequest("expiresInHours must be greater than zero.");
+
         ShortenedUrl shortened;
         try
         {
