@@ -55,4 +55,9 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapControllers();
 
+app.MapGet("/health", (RedisContext redis) =>
+    redis.IsConnected
+        ? Results.Ok(new { status = "ok" })
+        : Results.Json(new { status = "degraded" }, statusCode: StatusCodes.Status503ServiceUnavailable));
+
 app.Run();

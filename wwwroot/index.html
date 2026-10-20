@@ -63,9 +63,19 @@
 
         .status-dot {
             width: 8px; height: 8px; border-radius: 50%;
+            background: #7c7c6f;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .status.ok .status-dot {
             background: #0ae448;
             box-shadow: 0 0 10px #0ae448;
             animation: pulse 2s infinite;
+        }
+
+        .status.down .status-dot {
+            background: #ff6b6b;
+            box-shadow: 0 0 10px #ff6b6b;
         }
 
         @keyframes pulse {
@@ -192,7 +202,7 @@
 <body>
     <div class="top">
         <h2><span class="brace">{</span> url shortener <span class="brace">}</span></h2>
-        <span class="status"><span class="status-dot"></span> live</span>
+        <span class="status" id="statusBadge"><span class="status-dot"></span> checking</span>
     </div>
 
     <h3>shorten a url</h3>
@@ -236,6 +246,23 @@
     </footer>
 
     <script>
+        const statusBadge = document.getElementById('statusBadge');
+
+        async function checkHealth() {
+            try {
+                const res = await fetch('/health', { cache: 'no-store' });
+                const ok = res.ok;
+                statusBadge.className = 'status ' + (ok ? 'ok' : 'down');
+                statusBadge.innerHTML = `<span class="status-dot"></span> ${ok ? 'live' : 'degraded'}`;
+            } catch {
+                statusBadge.className = 'status down';
+                statusBadge.innerHTML = '<span class="status-dot"></span> offline';
+            }
+        }
+
+        checkHealth();
+        setInterval(checkHealth, 30000);
+
         document.getElementById('shortenForm').onsubmit = async (e) => {
             e.preventDefault();
             const body = { url: document.getElementById('urlInput').value };

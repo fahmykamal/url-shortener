@@ -12,4 +12,19 @@ public class RedisContext
     }
 
     public IDatabase Database => _connection.GetDatabase();
+
+    public bool IsConnected
+    {
+        get
+        {
+            try
+            {
+                return _connection.IsConnected;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 }
