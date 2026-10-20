@@ -34,6 +34,9 @@ public class UrlController : ControllerBase
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             return BadRequest("Url must be an absolute http or https URL.");
 
+        if (request.ExpiresInHours is null)
+            return BadRequest("expiresInHours is required.");
+
         if (request.ExpiresInHours is <= 0)
             return BadRequest("expiresInHours must be greater than zero.");
 
