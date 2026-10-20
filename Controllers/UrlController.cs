@@ -14,10 +14,12 @@ public class UrlController : ControllerBase
     private static readonly Regex CustomCodePattern = new("^[A-Za-z0-9_-]{1,32}$", RegexOptions.Compiled);
 
     private readonly IUrlShortenerService _service;
+    private readonly IWebHostEnvironment _env;
 
-    public UrlController(IUrlShortenerService service)
+    public UrlController(IUrlShortenerService service, IWebHostEnvironment env)
     {
         _service = service;
+        _env = env;
     }
 
     [HttpPost("shorten")]
@@ -72,8 +74,22 @@ public class UrlController : ControllerBase
     {
         var shortened = await _service.GetUrlByCodeAsync(code);
         if (shortened == null)
-            return NotFound();
+            return NotFoundPage();
 
         return Redirect(shortened.LongUrl);
+    }
+
+    private IActionResult NotFoundPage()
+    {
+        var acceptsHtml = Request.Headers.Accept.ToString().Contains("text/html", StringComparison.OrdinalIgnoreCase);
+        if (!acceptsHtml)
+            return NotFound();
+
+        var path = Path.Combine(_env.WebRootPath ?? "wwwroot", "error.html");
+        if (!System.IO.File.Exists(path))
+            return NotFound();
+
+        Response.StatusCode = StatusCodes.Status404NotFound;
+        return Content(System.IO.File.ReadAllText(path), "text/html");
     }
 }

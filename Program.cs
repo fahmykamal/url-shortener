@@ -60,4 +60,15 @@ app.MapGet("/health", (RedisContext redis) =>
         ? Results.Ok(new { status = "ok" })
         : Results.Json(new { status = "degraded" }, statusCode: StatusCodes.Status503ServiceUnavailable));
 
+app.MapFallback(async (HttpContext ctx, IWebHostEnvironment env) =>
+{
+    ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+    var path = Path.Combine(env.WebRootPath ?? "wwwroot", "error.html");
+    if (File.Exists(path) && ctx.Request.Headers.Accept.ToString().Contains("text/html", StringComparison.OrdinalIgnoreCase))
+    {
+        ctx.Response.ContentType = "text/html";
+        await ctx.Response.SendFileAsync(path);
+    }
+});
+
 app.Run();

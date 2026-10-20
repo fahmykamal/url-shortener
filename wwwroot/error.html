@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Not Found — URL Shortener</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: ui-monospace, "Courier New", monospace;
+            background: #0e100f;
+            color: #fffce1;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem 4rem;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: -150px; right: -150px;
+            width: 400px; height: 400px;
+            border-radius: 50%;
+            background: #e40a68;
+            filter: blur(160px);
+            opacity: 0.08;
+            pointer-events: none;
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2.5rem;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brace { color: #fffce1; font-size: 24px; opacity: 0.5; line-height: 1; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #7c7c6f;
+        }
+
+        .center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .code {
+            font-size: 96px;
+            font-weight: 700;
+            line-height: 1;
+            margin: 0;
+            color: #e40a68;
+            letter-spacing: -2px;
+        }
+
+        .msg {
+            margin: 1.5rem 0 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #fffce1;
+        }
+
+        .sub {
+            margin: 0.75rem 0 0;
+            font-size: 12px;
+            color: #7c7c6f;
+            max-width: 34ch;
+            line-height: 1.7;
+        }
+
+        .hint {
+            margin: 0.35rem 0 0;
+            font-size: 11px;
+            color: #7c7c6f;
+            opacity: 0.7;
+        }
+
+        a.home {
+            margin-top: 2.5rem;
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border: 1px solid #0ae448;
+            color: #0ae448;
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        a.home:hover { background: #0ae448; color: #0e100f; }
+
+        footer {
+            margin-top: 3rem;
+            font-size: 11px;
+            color: #7c7c6f;
+            text-align: center;
+        }
+
+        footer a { color: #fffce1; text-decoration: none; font-weight: 600; transition: opacity 0.2s; }
+        footer a:hover { opacity: 0.75; }
+    </style>
+</head>
+<body>
+    <div class="top">
+        <h2><span class="brace">{</span> url shortener <span class="brace">}</span></h2>
+        <span class="status">short link</span>
+    </div>
+
+    <div class="center">
+        <p class="code">404</p>
+        <p class="msg">short link not found</p>
+        <p class="sub">This link doesn't exist — it may have expired, or the code was mistyped.</p>
+        <p class="hint" id="requested"></p>
+        <a class="home" href="/">shorten a new url</a>
+    </div>
+
+    <footer>
+        <a href="https://fahmykamal.site">fahmykamal.site</a>
+    </footer>
+
+    <script>
+        const code = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ""));
+        if (code && code !== "error.html") {
+            document.getElementById("requested").textContent = "requested: /" + code;
+        }
+    </script>
+</body>
+</html>
