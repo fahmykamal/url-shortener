@@ -1,17 +1,42 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-      - run: dotnet build -c Release --nologo
+
+      - name: Validate Compose file
+        run: docker compose config --quiet
+
+      - name: Build image
+        run: docker compose build
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy URL shortener
+        run: docker compose up -d --build
+
+      - name: Verify deployment
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:5076/health; then
+              echo "URL shortener deployed successfully"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Health check failed"
+          docker compose logs --tail=50
+          exit 1
